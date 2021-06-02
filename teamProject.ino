@@ -5,18 +5,18 @@
 #define STATE_PENDING 0
 #define STATE_INPUTWORD 1
 
-#define ButtonA_Pin 21
-#define ButtonB_Pin 22
-#define ButtonC_Pin 23
-#define ButtonD_Pin 24
+#define PN532_IRQ   2 // NFC IRQ 핀
+#define PN532_RESET 3 // NFC RESET 핀 (아무 글자 없는 핀)
 
-
-#define PN532_IRQ   (2)
-#define PN532_RESET (3)  // Not connected by default on the NFC Shield
+int buzzerPin = 20; // 피에조 부저 핀
+int buttonPin[26] = { 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 
+  31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 
+  41, 42, 43, 44, 45, 46 }; // 버튼핀 A부터 Z까지 26개 - 21번핀~46번핀
+int enterPin = 47; // 엔터 핀
 
 Adafruit_PN532 nfc(PN532_IRQ, PN532_RESET);
 
-int nfc_list[6][4] = { 
+int nfcList[6][4] = {
   { 183, 8, 198, 95 },    // B7 08 C6 5F
   { 140, 236, 227, 46 },  // 8C EC E3 2E
   { 103, 9, 148, 95 },    // 67 09 94 5F
@@ -24,7 +24,7 @@ int nfc_list[6][4] = {
   { 215, 165, 161, 96 },  // D7 A5 A1 60
   { 135, 2, 134, 95 },    // 87 02 86 5F
 };
-char nfc_words[6][10] = {
+char nfcWords[6][10] = {
   "cat",
   "cow",
   "dog",
@@ -68,7 +68,6 @@ void loop(void) {
   success = nfc.readPassiveTargetID(PN532_MIFARE_ISO14443A, uid, &uidLength);
   
   if (state == STATE_PENDING && success) {
-
     nfcNumber = getNFCNumber(uid);
     Serial.print("NFC Number: "); Serial.println(nfcNumber);
     state = STATE_INPUTWORD;
@@ -84,7 +83,7 @@ void loop(void) {
     if (input == '0'){ // 임시로 0 입력하면 입력 완료 버튼 누른걸로 취급
       inputWord[inputLocation] = '\0'; 
       Serial.println(inputWord);
-      if(checkAnswer(inputWord))
+      if (checkAnswer(inputWord))
         Serial.println("Wrong Answer");
       else
         Serial.println("Right Answer");
@@ -97,14 +96,14 @@ int getNFCNumber(uint8_t* id){
   int nfc_number = -1;
   for (int i=0; i<6; i++){
     for (int j=0; j<4;j++){
-      if (id[j] != nfc_list[i][j]) {
+      if (id[j] != nfcList[i][j]) {
         nfc_number = -1;
         break;
       }
       else
         nfc_number = i;
     }
-    if(nfc_number != -1)
+    if (nfc_number != -1)
       break;
   }
   return nfc_number;
@@ -116,11 +115,31 @@ void resetInputState() {
 }
 
 int checkAnswer(char* input) {
-  if(strlen(input) != strlen(nfc_words[nfcNumber])) // 글자 수 틀렸나 체크
+  if (strlen(input) != strlen(nfcWords[nfcNumber])) // 글자 수 틀렸나 체크
     return 1;
-  for(int i=0; i<sizeof(nfc_words[nfcNumber]); i++){ // 단어 틀렸나 체크
-    if(input[i] != nfc_words[nfcNumber][i])
+  for (int i=0; i<sizeof(nfcWords[nfcNumber]); i++){ // 단어 틀렸나 체크
+    if (input[i] != nfcWords[nfcNumber][i])
       return 1;
   }
   return 0;
+}
+
+void playCorrectSound() {
+  tone(buzzerPin, 262, 500); // 도
+  delay(200);
+  tone(buzzerPin, 330, 500); // 미
+  delay(200);
+  tone(buzzerPin, 392, 500); // 솔
+  delay(200);
+  tone(buzzerPin, 523, 500); // 높은 도
+}
+
+void playWrongSound() {
+  tone(buzzerPin, 150, 400);
+  delay(100);
+  tone(buzzerPin, 150, 400);
+}
+
+void playNFCSound() {
+  tone(buzzerPin, 294, 200); // 레
 }
