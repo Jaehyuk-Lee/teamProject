@@ -38,6 +38,7 @@ char nfcWords[6][10] = {
 
 int nfc_state = STATE_PENDING;
 int key_state = KEYUP;
+int key_should_reset = 0;
 int nfcNumber;
 char inputWord[10];
 int inputLocation;
@@ -66,7 +67,7 @@ void setup(void) {
   Serial.println("Waiting for an ISO14443A Card ...");
 
   // 버튼 입력모드로 설정
-  for (int i = buttonPin[0]; i < buttonPin[0] + sizeof(buttonPin); i++)
+  for (int i = 0; i < sizeof(buttonPin)/2; i++)
     pinMode(buttonPin[i], INPUT);
   pinMode(enterPin, INPUT);
 }
@@ -85,13 +86,35 @@ void loop(void) {
     resetInputState();
   }
   if (nfc_state == STATE_INPUTWORD) {
-    char input = Serial.read();
-    if (input >= 97 && input <= 122){ // a~z 사이 글자만 입력 받음
-      inputWord[inputLocation] = input;
-      inputLocation++;
-      Serial.println(input);
+    char inputChar = ' ';
+    
+    key_should_reset = 1; // 키 안누른 상태
+    for (int i = 0; i < sizeof(buttonPin)/2 + 1; i++) { // +1 한 이유는 enterPin까지 한번에 처리하기 위함. 바로 다음핀이기 때문.
+      if (digitalRead(buttonPin[0] + i) == HIGH) {
+        key_should_reset = 0; // 키 누른 상태
+        if (key_state == KEYDOWN) return;
+        inputChar = 'a' + i;
+        Serial.print("Entered ");Serial.println(inputChar);
+        key_state = KEYDOWN;
+      }
     }
-    if (input == '0'){ // 임시로 0 입력하면 입력 완료 버튼 누른걸로 취급
+    if (key_should_reset) { // 키 누른 상태면 아직 초기화 안함
+      inputChar = ' ';
+      // Serial.println("Entered NOTHING");
+      key_state = KEYUP;
+      return; // loop 함수 처음부터 다시 시작
+    }
+
+    // a~z 사이 글자가 입력된 경우
+    if (inputChar >= 97 && inputChar <= 122) {
+      inputWord[inputLocation] = inputChar;
+      inputLocation++;
+      Serial.println(inputChar);
+      Serial.println(inputWord);
+    }
+
+    // 엔터키가 입력된 경우
+    if (inputChar == '{'){ // 엔터키는 '{'로 대응시켰음. 아스키코드로 'z' 다음 문자가 '{'임.
       inputWord[inputLocation] = '\0';
       Serial.println(inputWord);
       if (checkAnswer(inputWord))
@@ -100,6 +123,7 @@ void loop(void) {
         Serial.println("Right Answer");
       nfc_state = STATE_PENDING;
     }
+    delay(200); // 부하를 줄이기 위해 0.2초 지연 추가
   }
 }
 
