@@ -5,6 +5,9 @@
 #define STATE_PENDING 0
 #define STATE_INPUTWORD 1
 
+#define KEYUP 0
+#define KEYDOWN 1
+
 #define PN532_IRQ   2 // NFC IRQ 핀
 #define PN532_RESET 3 // NFC RESET 핀 (아무 글자 없는 핀)
 
@@ -34,6 +37,7 @@ char nfcWords[6][10] = {
 };
 
 int nfc_state = STATE_PENDING;
+int key_state = KEYUP;
 int nfcNumber;
 char inputWord[10];
 int inputLocation;
@@ -60,6 +64,11 @@ void setup(void) {
   nfc.SAMConfig();
   
   Serial.println("Waiting for an ISO14443A Card ...");
+
+  // 버튼 입력모드로 설정
+  for (int i = buttonPin[0]; i < buttonPin[0] + sizeof(buttonPin); i++)
+    pinMode(buttonPin[i], INPUT);
+  pinMode(enterPin, INPUT);
 }
 
 void loop(void) {
