@@ -33,13 +33,14 @@ char nfcWords[6][10] = {
   "lion",
 };
 
-int state = STATE_PENDING;
+int nfc_state = STATE_PENDING;
 int nfcNumber;
 char inputWord[10];
 int inputLocation;
 
 
 void setup(void) {
+  // nfc 초기화하는 부분
   Serial.begin(115200);
   while (!Serial) delay(10); // for Leonardo/Micro/Zero
 
@@ -51,8 +52,8 @@ void setup(void) {
     while (1); // halt
   }
   // Got ok data, print it out!
-  Serial.print("Found chip PN5"); Serial.println((versiondata>>24) & 0xFF, HEX); 
-  Serial.print("Firmware ver. "); Serial.print((versiondata>>16) & 0xFF, DEC); 
+  Serial.print("Found chip PN5"); Serial.println((versiondata>>24) & 0xFF, HEX);
+  Serial.print("Firmware ver. "); Serial.print((versiondata>>16) & 0xFF, DEC);
   Serial.print('.'); Serial.println((versiondata>>8) & 0xFF, DEC);
   
   // configure board to read RFID tags
@@ -67,13 +68,14 @@ void loop(void) {
   uint8_t uidLength;
   success = nfc.readPassiveTargetID(PN532_MIFARE_ISO14443A, uid, &uidLength);
   
-  if (state == STATE_PENDING && success) {
+  if (nfc_state == STATE_PENDING && success) {
+    playNFCSound();
     nfcNumber = getNFCNumber(uid);
     Serial.print("NFC Number: "); Serial.println(nfcNumber);
-    state = STATE_INPUTWORD;
+    nfc_state = STATE_INPUTWORD;
     resetInputState();
   }
-  if (state == STATE_INPUTWORD) {
+  if (nfc_state == STATE_INPUTWORD) {
     char input = Serial.read();
     if (input >= 97 && input <= 122){ // a~z 사이 글자만 입력 받음
       inputWord[inputLocation] = input;
@@ -81,19 +83,20 @@ void loop(void) {
       Serial.println(input);
     }
     if (input == '0'){ // 임시로 0 입력하면 입력 완료 버튼 누른걸로 취급
-      inputWord[inputLocation] = '\0'; 
+      inputWord[inputLocation] = '\0';
       Serial.println(inputWord);
       if (checkAnswer(inputWord))
         Serial.println("Wrong Answer");
       else
         Serial.println("Right Answer");
-      state = STATE_PENDING;
+      nfc_state = STATE_PENDING;
     }
   }
 }
 
+// 몇번째 NFC인지 확인
 int getNFCNumber(uint8_t* id){
-  int nfc_number = -1;
+  int nfc_number = -1; // 목록에 없는 경우에는 "-1"을 반환함
   for (int i=0; i<6; i++){
     for (int j=0; j<4;j++){
       if (id[j] != nfcList[i][j]) {
@@ -109,11 +112,13 @@ int getNFCNumber(uint8_t* id){
   return nfc_number;
 }
 
+// 입력 상태 초기화
 void resetInputState() {
   memset(inputWord, 0, sizeof(inputWord));
   inputLocation = 0;
 }
 
+// 정답이 맞는지 확인
 int checkAnswer(char* input) {
   if (strlen(input) != strlen(nfcWords[nfcNumber])) // 글자 수 틀렸나 체크
     return 1;
@@ -124,6 +129,7 @@ int checkAnswer(char* input) {
   return 0;
 }
 
+// 정답일 때 소리
 void playCorrectSound() {
   tone(buzzerPin, 262, 500); // 도
   delay(200);
@@ -134,12 +140,14 @@ void playCorrectSound() {
   tone(buzzerPin, 523, 500); // 높은 도
 }
 
+// 오답일 때 소리
 void playWrongSound() {
   tone(buzzerPin, 150, 400);
   delay(100);
   tone(buzzerPin, 150, 400);
 }
 
+// NFC 태그됐을 때 소리
 void playNFCSound() {
   tone(buzzerPin, 294, 200); // 레
 }
