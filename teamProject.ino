@@ -45,11 +45,19 @@ int inputLocation;
 
 
 void setup(void) {
-  // nfc 초기화하는 부분
+  // 버튼 입력모드로 설정
+  for (int i = 0; i < sizeof(buttonPin)/2; i++)
+    pinMode(buttonPin[i], INPUT);
+  pinMode(enterPin, INPUT);
+  
+  // 시리얼 통신 시작
   Serial.begin(115200);
   while (!Serial) delay(10); // for Leonardo/Micro/Zero
 
+   // NFC 초기화하는 부분
+
   nfc.begin();
+  Serial.println("Getting version data");
 
   uint32_t versiondata = nfc.getFirmwareVersion();
   if (! versiondata) {
@@ -65,63 +73,54 @@ void setup(void) {
   nfc.SAMConfig();
   
   Serial.println("Waiting for an ISO14443A Card ...");
-
-  // 버튼 입력모드로 설정
-  for (int i = 0; i < sizeof(buttonPin)/2; i++)
-    pinMode(buttonPin[i], INPUT);
-  pinMode(enterPin, INPUT);
 }
 
 void loop(void) {
-  uint8_t success;
-  uint8_t uid[] = { 0, 0, 0, 0 };
-  uint8_t uidLength;
-  success = nfc.readPassiveTargetID(PN532_MIFARE_ISO14443A, uid, &uidLength);
-  
-  if (nfc_state == STATE_PENDING && success) {
-    playNFCSound();
-    nfcNumber = getNFCNumber(uid);
-    Serial.print("NFC Number: "); Serial.println(nfcNumber);
-    nfc_state = STATE_INPUTWORD;
-    resetInputState();
+  if (nfc_state == STATE_PENDING) {
+    uint8_t success;
+    uint8_t uid[] = { 0, 0, 0, 0 };
+    uint8_t uidLength;
+    success = nfc.readPassiveTargetID(PN532_MIFARE_ISO14443A, uid, &uidLength);
+    if (success) {
+      playNFCSound();
+      nfcNumber = getNFCNumber(uid);
+      Serial.print("NFC Number: "); Serial.println(nfcNumber);
+      nfc_state = STATE_INPUTWORD;
+      resetInputState();
+    }
   }
   if (nfc_state == STATE_INPUTWORD) {
     char inputChar = ' ';
     
     key_should_reset = 1; // 키 안누른 상태
-    for (int i = 0; i < sizeof(buttonPin)/2 + 1; i++) { // +1 한 이유는 enterPin까지 한번에 처리하기 위함. 바로 다음핀이기 때문.
-      if (digitalRead(buttonPin[0] + i) == HIGH) {
+    for (int i = 0; i < sizeof(buttonPin)/2; i++) {
+      if (digitalRead(buttonPin[i]) == HIGH) {
         key_should_reset = 0; // 키 누른 상태
         if (key_state == KEYDOWN) return;
         inputChar = 'a' + i;
         Serial.print("Entered ");Serial.println(inputChar);
+        inputWord[inputLocation] = inputChar;
+        inputLocation++;
+        Serial.print("Entered Word: ");Serial.println(inputWord);
         key_state = KEYDOWN;
       }
     }
-    if (key_should_reset) { // 키 누른 상태면 아직 초기화 안함
-      inputChar = ' ';
-      // Serial.println("Entered NOTHING");
-      key_state = KEYUP;
-      return; // loop 함수 처음부터 다시 시작
-    }
-
-    // a~z 사이 글자가 입력된 경우
-    if (inputChar >= 97 && inputChar <= 122) {
-      inputWord[inputLocation] = inputChar;
-      inputLocation++;
-      Serial.println(inputChar);
-      Serial.println(inputWord);
-    }
-
     // 엔터키가 입력된 경우
-    if (inputChar == '{'){ // 엔터키는 '{'로 대응시켰음. 아스키코드로 'z' 다음 문자가 '{'임.
+    if (digitalRead(enterPin) == HIGH && key_should_reset) {
       inputWord[inputLocation] = '\0';
-      Serial.println(inputWord);
+      Serial.print("My Answer: ");Serial.println(inputWord);
       if (checkAnswer(inputWord))
-        Serial.println("Wrong Answer");
+        playWrongSound();
       else
-        Serial.println("Right Answer");
+        playCorrectSound();
       nfc_state = STATE_PENDING;
+      return;
+    }
+    // 아무런 키가 입력되지 않은 상태
+    if (key_should_reset) {
+      inputChar = ' ';
+      key_state = KEYUP;
+      return;
     }
     delay(200); // 부하를 줄이기 위해 0.2초 지연 추가
   }
@@ -164,6 +163,7 @@ int checkAnswer(char* input) {
 
 // 정답일 때 소리
 void playCorrectSound() {
+  Serial.println("Right Answer");
   tone(buzzerPin, 262, 500); // 도
   delay(200);
   tone(buzzerPin, 330, 500); // 미
@@ -175,6 +175,7 @@ void playCorrectSound() {
 
 // 오답일 때 소리
 void playWrongSound() {
+  Serial.println("Wrong Answer");
   tone(buzzerPin, 150, 400);
   delay(100);
   tone(buzzerPin, 150, 400);
