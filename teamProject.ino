@@ -31,12 +31,12 @@ int nfcList[6][4] = {
   { 135, 2, 134, 95 },    // 87 02 86 5F
 };
 char nfcWords[6][10] = {
-  "cat",
-  "cow",
-  "dog",
-  "frog"
   "rabbit",
-  "lion"
+  "mouse",
+  "monkey",
+  "sheep"
+  "frog",
+  "tiger"
 };
 
 int nfc_state = STATE_PENDING;
@@ -57,7 +57,7 @@ void setup(void) {
   Serial.begin(115200);
   while (!Serial) delay(10); // for Leonardo/Micro/Zero
 
-   // NFC 초기화하는 부분
+  // NFC 초기화하는 부분
 
   nfc.begin();
   Serial.println("Getting version data");
