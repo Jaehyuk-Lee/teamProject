@@ -11,11 +11,14 @@
 #define PN532_IRQ   2 // NFC IRQ 핀
 #define PN532_RESET 3 // NFC RESET 핀 (아무 글자 없는 핀)
 
-int buzzerPin = 5; // 피에조 부저 핀
-int buttonPin[26] = { 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 
-  32, 33, 34, 35, 36, 37, 38, 39, 40, 42, 
-  43, 44, 45, 47, 49, 50 }; // 버튼핀 A부터 Z까지 26개 - 22번핀~50번핀 주의사항!! 41번, 46번, 48번핀 문제가 있어 제외했음
-int enterPin = 4; // 엔터 핀
+int buzzerPin = 4; // 피에조 부저 핀
+
+// 이상한 핀: 7, 13, 22, 24, 28, 29, 41, 43, 46, 48, 49
+
+int buttonPin[26] = { 6, 8, 9, 10, 11, 12, 23, 25, 26, 27,
+  30, 31, 32, 33, 34, 35, 36, 37, 38, 39,
+  40, 41, 42, 44, 45, 47 }; // 버튼핀 A부터 Z까지 26개
+int enterPin = 5; // 엔터 핀
 
 Adafruit_PN532 nfc(PN532_IRQ, PN532_RESET);
 
@@ -33,7 +36,7 @@ char nfcWords[6][10] = {
   "dog",
   "frog"
   "rabbit",
-  "lion",
+  "lion"
 };
 
 int nfc_state = STATE_PENDING;
@@ -98,11 +101,12 @@ void loop(void) {
         key_should_reset = 0; // 키 누른 상태
         if (key_state == KEYDOWN) return;
         inputChar = 'a' + i;
-        Serial.print("Entered ");Serial.println(inputChar);
+        Serial.print("Entered ");Serial.print(inputChar);Serial.print(" / Pin ");Serial.println(buttonPin[i]);
         inputWord[inputLocation] = inputChar;
         inputLocation++;
         Serial.print("Entered Word: ");Serial.println(inputWord);
         key_state = KEYDOWN;
+        break;
       }
     }
     // 엔터키가 입력된 경우
@@ -122,7 +126,7 @@ void loop(void) {
       key_state = KEYUP;
       return;
     }
-    delay(200); // 부하를 줄이기 위해 0.2초 지연 추가
+    delay(300); // 부하를 줄이기 위해 0.3초 지연 추가
   }
 }
 
