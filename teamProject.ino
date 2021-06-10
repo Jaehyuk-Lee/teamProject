@@ -58,7 +58,6 @@ void setup(void) {
   while (!Serial) delay(10); // for Leonardo/Micro/Zero
 
   // NFC 초기화하는 부분
-
   nfc.begin();
   Serial.println("Getting version data");
 
